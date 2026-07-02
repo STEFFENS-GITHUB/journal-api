@@ -40,7 +40,7 @@ def index():
 
 @app.get("/health", status_code=200)
 def health():
-    return {"status": "alive"}
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
     uvicorn.run(
