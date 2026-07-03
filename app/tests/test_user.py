@@ -1,21 +1,12 @@
-from httpx import AsyncClient, ASGITransport
-from app.main import app
 import pytest
-TEST_AUTH = ("default_user", "123")
 
 @pytest.fixture
-async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
-
-@pytest.fixture
-async def create_test_user(client):
+async def create_test_user(client, auth_headers):
     response = await client.post("/api/user/create", json={"username":"test_user", "password":"123"})
     assert response.status_code == 201
     user = response.json()
     yield user["id"]
-    await client.delete(f"/api/user/{user['id']}", auth=TEST_AUTH)
+    await client.delete(f"/api/user/{user['id']}", headers=auth_headers) # Uses default user creds to delete, rather then test user, will need changing
 
 async def test_get_user(client, create_test_user):
     response = await client.get(f"/api/user/{create_test_user}")

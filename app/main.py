@@ -1,7 +1,7 @@
 from app.database.session import engine, get_session
 from app.models.base import Base
 from app.routers.auth import create_default_user
-from app.routers import journal, user
+from app.routers import journal, user, auth
 from app.middleware.logging import LoggingMiddleware
 from fastapi import FastAPI, Request, HTTPException
 from contextlib import asynccontextmanager
@@ -33,6 +33,7 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(LoggingMiddleware)
 app.include_router(journal.router)
 app.include_router(user.router)
+app.include_router(auth.router)
 
 @app.get('/')
 def index():

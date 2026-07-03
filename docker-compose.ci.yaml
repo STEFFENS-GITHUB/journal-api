@@ -26,6 +26,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       DOCKER_ENV: ${DOCKER_ENV}
       DEFAULT_APP_PASSWORD: ${DEFAULT_APP_PASSWORD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on: 
       mysql:
         condition: service_healthy

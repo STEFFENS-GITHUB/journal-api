@@ -8,3 +8,4 @@ fastapi[all]
 uvicorn
 mysql-connector-python
 cryptography
+pyjwt
