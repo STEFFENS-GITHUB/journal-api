@@ -24,7 +24,10 @@ async def create_user(session: Annotated[AsyncSession, Depends(get_session)],
 
 @router.get('/{id}', response_model=UserOut)
 async def get_user(session: Annotated[AsyncSession, Depends(get_session)],
+                  user: Annotated[User, Depends(get_current_user)],
                   id: int):
+    if id != user.id:
+        raise HTTPException(status_code=404, detail="User not found")
     query = select(User).options(selectinload(User.journals)).where(User.id == id)
     result = await session.execute(query)
     user = result.scalars().one_or_none()
@@ -37,6 +40,8 @@ async def get_user(session: Annotated[AsyncSession, Depends(get_session)],
 async def delete_user(session: Annotated[AsyncSession, Depends(get_session)],
                   user: Annotated[User, Depends(get_current_user)],
                  id: int):
+    if id != user.id:
+        raise HTTPException(status_code=404, detail="User not found")
     user = await session.get(User, id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
