@@ -1,3 +1,5 @@
+import os
+
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 import pytest
@@ -10,7 +12,10 @@ async def client():
 
 @pytest.fixture
 async def auth_headers(client):
-    response = await client.post("/login", data={"username": "default_user", "password": "123"})
+    response = await client.post("/login", data={
+        "username": os.environ["DEFAULT_USER"],
+        "password": os.environ["DEFAULT_USER_PASSWORD"],
+    })
     assert response.status_code == 200
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

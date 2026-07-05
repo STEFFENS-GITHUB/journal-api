@@ -16,6 +16,10 @@ from app.models.user import UserOut, User
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("Missing JWT_SECRET_KEY env var")
+DEFAULT_USER = os.getenv("DEFAULT_USER")
+DEFAULT_USER_PASSWORD = os.getenv("DEFAULT_USER_PASSWORD")
+if not DEFAULT_USER or not DEFAULT_USER_PASSWORD:
+    raise RuntimeError("Missing DEFAULT_USER or DEFAULT_USER_PASSWORD env var")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 5
 
@@ -64,10 +68,10 @@ async def get_current_user(token: Annotated[str, Depends(OAuth2PasswordBearer(to
 
 async def create_default_user():
     async with AsyncSessionLocal() as session:
-        query = select(User).where(User.username == "default_user")
+        query = select(User).where(User.username == DEFAULT_USER)
         result = await session.execute(query)
         user = result.scalars().first()
         if not user:
-            user = User(username="default_user", password_hash=hash_password("123"))
+            user = User(username=DEFAULT_USER, password_hash=hash_password(DEFAULT_USER_PASSWORD))
             session.add(user)
             await session.commit()
