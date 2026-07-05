@@ -18,6 +18,11 @@ class JournalOut(BaseModel):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
+class JournalSummary(BaseModel):
+    id: int
+    title: str
+    model_config = ConfigDict(from_attributes=True)
+
 class Journal(Base):
     __tablename__ = "journal"
     id: Mapped[int] = mapped_column(primary_key=True)

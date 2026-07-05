@@ -1,4 +1,4 @@
-from app.models.journal import Journal, JournalIn, JournalOut, JournalUpdate
+from app.models.journal import Journal, JournalIn, JournalOut, JournalSummary, JournalUpdate
 from app.models.user import User
 from app.database.session import get_session
 from app.routers.auth import get_current_user
@@ -57,6 +57,14 @@ async def update_journal(session: Annotated[AsyncSession, Depends(get_session)],
     await session.commit()
     await session.refresh(journal)
     return journal
+
+@router.get('', response_model=list[JournalSummary])
+@router.get('/', response_model=list[JournalSummary])
+async def get_journals(session: Annotated[AsyncSession, Depends(get_session)],
+                  user: Annotated[User, Depends(get_current_user)]):
+    query = select(Journal).where(Journal.user_id == user.id)
+    result = await session.execute(query)
+    return result.scalars().all()
 
 @router.get('/{id}', response_model=JournalOut)
 async def get_journal(session: Annotated[AsyncSession, Depends(get_session)],
