@@ -46,24 +46,45 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2Pa
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
     return {"access_token": create_access_token(user.id), "token_type": "bearer"}
 
-async def get_current_user(token: Annotated[str, Depends(OAuth2PasswordBearer(tokenUrl="/login"))],
+async def get_current_user(token: Annotated[str | None, Depends(OAuth2PasswordBearer(tokenUrl="/login", auto_error=False))],
                             session: Annotated[AsyncSession, Depends(get_session)]):
-    credentials_exception = HTTPException(
+    unauthenticated_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="You are not logged in",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if token is None:
+        raise unauthenticated_exception
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
-            raise credentials_exception
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your session has expired, please log in again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except jwt.PyJWTError:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     user = await session.get(User, int(user_id))
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your account no longer exists",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return UserOut.model_validate(user)
 
 async def create_default_user():

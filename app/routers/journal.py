@@ -10,6 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/journal")
 
+def _check_journal_access(journal: Journal | None, user: User) -> None:
+    if not journal:
+        raise HTTPException(status_code=404, detail="Journal not found")
+    if journal.user_id != user.id:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this journal")
+
 @router.post('/create', response_model=JournalOut, status_code=status.HTTP_201_CREATED)
 async def create_journal(session: Annotated[AsyncSession, Depends(get_session)],
                   user: Annotated[User, Depends(get_current_user)],
@@ -25,8 +31,7 @@ async def delete_journal(session: Annotated[AsyncSession, Depends(get_session)],
                   user: Annotated[User, Depends(get_current_user)],
                  id: int):
     journal = await session.get(Journal, id)
-    if not journal or journal.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Journal not found")
+    _check_journal_access(journal, user)
     await session.delete(journal)
     await session.commit()
 
@@ -35,8 +40,7 @@ async def replace_journal(session: Annotated[AsyncSession, Depends(get_session)]
                     user: Annotated[User, Depends(get_current_user)],
                  id: int, new_journal: JournalIn):
     journal = await session.get(Journal, id)
-    if not journal or journal.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Journal not found")
+    _check_journal_access(journal, user)
     new_data = new_journal.model_dump()
     for key in new_data:
         setattr(journal, key, new_data[key])
@@ -49,8 +53,7 @@ async def update_journal(session: Annotated[AsyncSession, Depends(get_session)],
                    user: Annotated[User, Depends(get_current_user)],
                    id: int, updated_journal: JournalUpdate):
     journal = await session.get(Journal, id)
-    if not journal or journal.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Journal not found")
+    _check_journal_access(journal, user)
     new_data = updated_journal.model_dump(exclude_unset=True)
     for key in new_data:
         setattr(journal, key, new_data[key])
@@ -73,6 +76,5 @@ async def get_journal(session: Annotated[AsyncSession, Depends(get_session)],
     query = select(Journal).options(selectinload(Journal.user)).where(Journal.id == id)
     result = await session.execute(query)
     journal = result.scalars().one_or_none()
-    if not journal or journal.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Journal not found")
+    _check_journal_access(journal, user)
     return journal
