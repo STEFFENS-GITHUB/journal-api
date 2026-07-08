@@ -1,7 +1,7 @@
 from app.models.journal import Journal, JournalIn, JournalOut, JournalSummary, JournalUpdate
 from app.models.user import User
 from app.database.session import get_session
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, get_current_user_optional
 from typing import Annotated
 from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy import select
@@ -10,9 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/journal")
 
-def _check_journal_access(journal: Journal | None, user: User) -> None:
+def _check_journal_access(journal: Journal | None, user: User | None, allow_public: bool = False) -> None:
     if not journal:
         raise HTTPException(status_code=404, detail="Journal not found")
+    if allow_public and journal.is_public:
+        return
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="You are not logged in",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if journal.user_id != user.id:
         raise HTTPException(status_code=403, detail="You are not authorized to access this journal")
 
@@ -71,10 +79,10 @@ async def get_journals(session: Annotated[AsyncSession, Depends(get_session)],
 
 @router.get('/{id}', response_model=JournalOut)
 async def get_journal(session: Annotated[AsyncSession, Depends(get_session)],
-                  user: Annotated[User, Depends(get_current_user)],
+                  user: Annotated[User | None, Depends(get_current_user_optional)],
                   id: int):
     query = select(Journal).options(selectinload(Journal.user)).where(Journal.id == id)
     result = await session.execute(query)
     journal = result.scalars().one_or_none()
-    _check_journal_access(journal, user)
+    _check_journal_access(journal, user, allow_public=True)
     return journal

@@ -87,6 +87,12 @@ async def get_current_user(token: Annotated[str | None, Depends(OAuth2PasswordBe
         )
     return UserOut.model_validate(user)
 
+async def get_current_user_optional(token: Annotated[str | None, Depends(OAuth2PasswordBearer(tokenUrl="/login", auto_error=False))],
+                                     session: Annotated[AsyncSession, Depends(get_session)]):
+    if token is None:
+        return None
+    return await get_current_user(token, session)
+
 async def create_default_user():
     async with AsyncSessionLocal() as session:
         query = select(User).where(User.username == DEFAULT_USER)
