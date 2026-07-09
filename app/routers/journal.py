@@ -5,7 +5,6 @@ from app.routers.auth import get_current_user, get_current_user_optional
 from typing import Annotated
 from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/journal")
@@ -77,11 +76,27 @@ async def get_journals(session: Annotated[AsyncSession, Depends(get_session)],
     result = await session.execute(query)
     return result.scalars().all()
 
+@router.get('/index', response_model=list[JournalSummary])
+async def get_journal_index(session: Annotated[AsyncSession, Depends(get_session)],
+                             after_id: int = 0, limit: int = 50):
+    limit = min(limit, 100)
+    query = (
+        select(Journal.id, Journal.title, Journal.is_public)
+        .where(Journal.id > after_id)
+        .order_by(Journal.id)
+        .limit(limit)
+    )
+    result = await session.execute(query)
+    return [
+        JournalSummary(id=id, title=title if is_public else "Private", is_public=is_public)
+        for id, title, is_public in result.all()
+    ]
+
 @router.get('/{id}', response_model=JournalOut)
 async def get_journal(session: Annotated[AsyncSession, Depends(get_session)],
                   user: Annotated[User | None, Depends(get_current_user_optional)],
                   id: int):
-    query = select(Journal).options(selectinload(Journal.user)).where(Journal.id == id)
+    query = select(Journal).where(Journal.id == id)
     result = await session.execute(query)
     journal = result.scalars().one_or_none()
     _check_journal_access(journal, user, allow_public=True)
