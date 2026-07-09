@@ -78,13 +78,12 @@ async def get_journals(session: Annotated[AsyncSession, Depends(get_session)],
 
 @router.get('/index', response_model=list[JournalSummary])
 async def get_journal_index(session: Annotated[AsyncSession, Depends(get_session)],
-                             after_id: int = 0, limit: int = 50):
-    limit = min(limit, 100)
+                             after_id: int = 0):
     query = (
         select(Journal.id, Journal.title, Journal.is_public)
         .where(Journal.id > after_id)
         .order_by(Journal.id)
-        .limit(limit)
+        .limit(50)
     )
     result = await session.execute(query)
     return [
