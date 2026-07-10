@@ -4,6 +4,7 @@ asyncmy
 requests
 pytest
 pytest-asyncio
+pytest-dotenv
 fastapi[all]
 uvicorn
 mysql-connector-python

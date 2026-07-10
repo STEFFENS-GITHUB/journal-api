@@ -1,7 +1,7 @@
 from app.models.journal import Journal, JournalIn, JournalOut
-from app.database.session import get_session
+from app.session import get_session
 from app.models.user import User, UserIn, UserOut
-from app.routers.auth import hash_password
+from app.utils.utils import hash_password
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession

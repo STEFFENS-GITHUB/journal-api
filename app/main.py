@@ -1,15 +1,15 @@
-from app.database.session import engine, get_session
 from app.models.base import Base
 from app.routers.auth import create_default_user
 from app.routers import journal, user, auth
 from app.middleware.logging import LoggingMiddleware
+from app.session import config_init
 from fastapi import FastAPI, Request, HTTPException
 from contextlib import asynccontextmanager
 import uvicorn
-import asyncio 
+import asyncio
 from sqlalchemy import text
 
-async def init_db():
+async def init_db(engine, session_factory):
     for _ in range (30):
         try:
             async with engine.connect() as conn:
@@ -22,11 +22,12 @@ async def init_db():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await create_default_user()
+    await create_default_user(session_factory)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    app.state.engine, app.state.session_factory = config_init()
+    await init_db(app.state.engine, app.state.session_factory)
     yield
 
 app = FastAPI(lifespan=lifespan)

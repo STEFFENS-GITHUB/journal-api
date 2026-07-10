@@ -5,36 +5,22 @@ from typing import Annotated
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.database.session import get_session, AsyncSessionLocal
+from app.session import get_session
 from app.models.user import UserOut, User
+from app.utils.utils import hash_password, verify_password
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("Missing JWT_SECRET_KEY env var")
-DEFAULT_USER = os.getenv("DEFAULT_USER")
-DEFAULT_USER_PASSWORD = os.getenv("DEFAULT_USER_PASSWORD")
-if not DEFAULT_USER or not DEFAULT_USER_PASSWORD:
-    raise RuntimeError("Missing DEFAULT_USER or DEFAULT_USER_PASSWORD env var")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 5
 
 router = APIRouter()
-password_hash = PasswordHash.recommended()
-
-def hash_password(password: str) -> str:
-    return password_hash.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return password_hash.verify(plain_password, hashed_password)
 
 def create_access_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode({"sub": str(user_id), "exp": expire}, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
 
 @router.post("/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
@@ -57,7 +43,7 @@ async def get_current_user(token: Annotated[str | None, Depends(OAuth2PasswordBe
         raise unauthenticated_exception
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, os.getenv("JWT_SECRET_KEY"), algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(
@@ -93,12 +79,12 @@ async def get_current_user_optional(token: Annotated[str | None, Depends(OAuth2P
         return None
     return await get_current_user(token, session)
 
-async def create_default_user():
-    async with AsyncSessionLocal() as session:
-        query = select(User).where(User.username == DEFAULT_USER)
+async def create_default_user(session_factory):
+    async with session_factory() as session:
+        query = select(User).where(User.username == os.getenv("DEFAULT_USER"))
         result = await session.execute(query)
         user = result.scalars().first()
         if not user:
-            user = User(username=DEFAULT_USER, password_hash=hash_password(DEFAULT_USER_PASSWORD))
+            user = User(username=os.getenv("DEFAULT_USER"), password_hash=hash_password(os.getenv("DEFAULT_USER_PASSWORD")))
             session.add(user)
             await session.commit()
