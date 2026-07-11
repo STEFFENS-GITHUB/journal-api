@@ -18,8 +18,8 @@ services:
       retries: 5
       start_period: 15s
 
-  core:
-    image: steffenp123/journal-app:latest
+  api:
+    image: steffenp123/journal-api:latest
     ports: 
     - 8000:8000
     environment:

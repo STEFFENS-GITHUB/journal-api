@@ -1,4 +1,4 @@
-name: Journal App Image Build
+name: Journal API Image Build
 on:
   push:
     branches:
@@ -39,7 +39,7 @@ jobs:
       run: pip install -r app/requirements.txt
     - name: Run docker compose
       run: docker compose -f docker-compose.ci.yaml up -d mysql
-    - name: Run journal app
+    - name: Initialize journal API database
       run: python -m app.init_db
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL_LOCAL }}
@@ -66,5 +66,5 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: |
-          steffenp123/journal-app:1.${{ github.run_number }}
-          steffenp123/journal-app:latest
+          steffenp123/journal-api:1.${{ github.run_number }}
+          steffenp123/journal-api:latest

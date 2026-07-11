@@ -1,4 +1,4 @@
-# journal-app
+# Journal API
 
 ## Environment Variables
 
@@ -7,7 +7,7 @@
 | Variable | Description |
 | --- | --- |
 `DB_MASTER_SECRET` | DB login credentials as JSON, e.g. `{"username":"admin","password":"hunter2"}`.
-`DB_ENDPOINT` | The database hostname (DNS name), e.g. `journal-app-db.58138ad.us-east-1.rds.amazonaws.com`.
+`DB_ENDPOINT` | The database hostname (DNS name), e.g. `journal-api-db.58138ad.us-east-1.rds.amazonaws.com`.
 `DB_NAME` | The database name, e.g. `journal`.
 `JWT_SECRET_KEY` | Secret key used to sign/verify login JWTs.
 `DEFAULT_USER` | Username of the default app user created on startup.
