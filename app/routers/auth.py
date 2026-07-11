@@ -6,11 +6,12 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.session import get_session
-from app.models.user import UserOut, User
+from app.models.user import UserIn, UserOut, User
 from app.utils.utils import hash_password, verify_password
 
 ALGORITHM = "HS256"
@@ -21,6 +22,19 @@ router = APIRouter()
 def create_access_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": str(user_id), "exp": expire}, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
+
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+async def register(newUser: UserIn,
+                   session: Annotated[AsyncSession, Depends(get_session)]):
+    user = User(username=newUser.username, password_hash=hash_password(newUser.password))
+    session.add(user)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+    await session.refresh(user)
+    return user
 
 @router.post("/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],

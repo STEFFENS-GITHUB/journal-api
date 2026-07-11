@@ -4,7 +4,7 @@ from app.models.base import Base
 from pydantic import BaseModel, ConfigDict, Field
 
 class UserIn(BaseModel):
-    username: str
+    username: str = Field(min_length=3, max_length=20, pattern=r"^[a-zA-Z0-9_]+$")
     password: str = Field(min_length=3)
 
 class UserOut(BaseModel):

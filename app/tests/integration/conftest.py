@@ -20,7 +20,7 @@ TEST_PASSWORD = "123"
 
 @pytest.fixture
 async def create_test_user(client):
-    response = await client.post("/api/user/create", json={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    response = await client.post("/register", json={"username": TEST_USERNAME, "password": TEST_PASSWORD})
     user = response.json()
     response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
