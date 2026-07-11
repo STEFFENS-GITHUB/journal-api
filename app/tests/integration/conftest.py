@@ -15,6 +15,18 @@ async def client():
         yield client
     await app.state.engine.dispose()
 
+TEST_USERNAME = "test_user"
+TEST_PASSWORD = "123"
+
+@pytest.fixture
+async def create_test_user(client):
+    response = await client.post("/api/user/create", json={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    user = response.json()
+    response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    yield user["id"], headers
+    await client.delete(f"/api/user/{user['id']}", headers=headers)
+
 @pytest.fixture
 async def auth_headers(client):
     response = await client.post("/login", data={
