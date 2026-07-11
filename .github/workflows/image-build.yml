@@ -4,7 +4,21 @@ on:
     branches:
     - main
 jobs:
-  testing:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout git repository
+      uses: actions/checkout@v6
+    - name: Install python to runner
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+    - name: Install app dependancies
+      run: pip install -r app/requirements.txt
+    - name: Run unit tests
+      run: pytest app/tests/unit
+
+  integration-test:
     runs-on: ubuntu-latest
     env:
       MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
@@ -29,13 +43,13 @@ jobs:
       run: python -m app.init_db
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL_LOCAL }}
-    - name: Run unit tests
-      run: pytest app
+    - name: Run integration tests
+      run: pytest app/tests/integration
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL_LOCAL }}
 
   build-and-push:
-    needs: testing
+    needs: [unit-test, integration-test]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout git repository
