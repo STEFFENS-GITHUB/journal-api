@@ -17,6 +17,6 @@ class User(Base):
     __tablename__ = "user"
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
-    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     journals: Mapped[list["Journal"]] = relationship("Journal", back_populates="user")

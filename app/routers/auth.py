@@ -5,7 +5,7 @@ from typing import Annotated
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -32,14 +32,14 @@ async def register(newUser: UserIn,
         await session.commit()
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already taken")
     await session.refresh(user)
     return user
 
 @router.post("/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
                  session: Annotated[AsyncSession, Depends(get_session)]):
-    query = select(User).where(User.username == form_data.username)
+    query = select(User).where(or_(User.username == form_data.username, User.email == form_data.username))
     result = await session.execute(query)
     user = result.scalars().first()
     if not user or not verify_password(form_data.password, user.password_hash):

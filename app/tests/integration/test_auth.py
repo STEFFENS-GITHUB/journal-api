@@ -16,12 +16,23 @@ async def test_register_duplicate_username(client, create_test_user):
     response = await client.post("/register", json={"username": TEST_USERNAME, "email": TEST_EMAIL, "password": TEST_PASSWORD})
     assert response.status_code == 409
 
+async def test_register_duplicate_email(client, create_test_user):
+    response = await client.post("/register", json={"username": "other_user", "email": TEST_EMAIL, "password": TEST_PASSWORD})
+    assert response.status_code == 409
+
 async def test_register_invalid_username(client):
     response = await client.post("/register", json={"username": "test user!", "email": TEST_EMAIL, "password": TEST_PASSWORD})
     assert response.status_code == 422
 
 async def test_login(client, create_test_user):
     response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["access_token"]
+    assert body["token_type"] == "bearer"
+
+async def test_login_with_email(client, create_test_user):
+    response = await client.post("/login", data={"username": TEST_EMAIL, "password": TEST_PASSWORD})
     assert response.status_code == 200
     body = response.json()
     assert body["access_token"]
