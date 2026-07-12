@@ -26,7 +26,7 @@ def create_access_token(user_id: int) -> str:
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(newUser: UserIn,
                    session: Annotated[AsyncSession, Depends(get_session)]):
-    user = User(username=newUser.username, password_hash=hash_password(newUser.password))
+    user = User(username=newUser.username, email=newUser.email, password_hash=hash_password(newUser.password))
     session.add(user)
     try:
         await session.commit()
