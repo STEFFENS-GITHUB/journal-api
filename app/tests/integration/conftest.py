@@ -2,14 +2,17 @@ import os
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.session import config_init
+from app.routers.auth import create_email_verification_token
+from app.utils.database import create_db_engine
+from app.utils.queue import create_sqs_client
 import pytest
 
 @pytest.fixture
 async def client():
     if os.getenv("DATABASE_URL_LOCAL"):
         os.environ["DATABASE_URL"] = os.environ["DATABASE_URL_LOCAL"]
-    app.state.engine, app.state.session_factory = config_init()
+    app.state.engine, app.state.session_factory = create_db_engine()
+    app.state.sqs_client = create_sqs_client()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
@@ -23,6 +26,9 @@ TEST_PASSWORD = "123"
 async def create_test_user(client):
     response = await client.post("/register", json={"username": TEST_USERNAME, "email": TEST_EMAIL, "password": TEST_PASSWORD})
     user = response.json()
+    token = create_email_verification_token(user["id"])
+    response = await client.get(f"/verify-email?token={token}")
+    assert response.status_code == 200
     response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
     yield user["id"], headers

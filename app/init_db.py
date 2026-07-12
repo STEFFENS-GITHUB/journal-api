@@ -1,7 +1,8 @@
 import asyncio
-from app.session import config_init
-from app.main import init_db
+from app.utils.database import create_db_engine
+from app.main import init_db, validate_env
 
 if __name__ == "__main__":
-    engine, session_factory = config_init()
+    validate_env()
+    engine, session_factory = create_db_engine()
     asyncio.run(init_db(engine, session_factory))

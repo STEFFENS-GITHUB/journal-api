@@ -1,3 +1,4 @@
+from app.routers.auth import create_access_token, create_email_verification_token
 from app.tests.integration.conftest import TEST_USERNAME, TEST_EMAIL, TEST_PASSWORD
 
 async def test_register(client):
@@ -8,10 +9,26 @@ async def test_register(client):
     assert "password" not in user and "password_hash" not in user
 
     response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    assert response.status_code == 403
+
+    token = create_email_verification_token(user["id"])
+    response = await client.get(f"/verify-email?token={token}")
+    assert response.status_code == 200
+
+    response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
     assert response.status_code == 200
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
     await client.delete(f"/api/user/{user['id']}", headers=headers)
 
+async def test_verify_email_invalid_token(client):
+    response = await client.get("/verify-email?token=not-a-real-token")
+    assert response.status_code == 400
+
+async def test_verify_email_rejects_login_token(client):
+    login_token = create_access_token(user_id=1)
+    response = await client.get(f"/verify-email?token={login_token}")
+    assert response.status_code == 400
+    
 async def test_register_duplicate_username(client, create_test_user):
     response = await client.post("/register", json={"username": TEST_USERNAME, "email": TEST_EMAIL, "password": TEST_PASSWORD})
     assert response.status_code == 409

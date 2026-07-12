@@ -1,5 +1,5 @@
 from app.models.journal import Journal, JournalIn, JournalOut
-from app.session import get_session
+from app.utils.database import get_session
 from app.models.user import User, UserOut
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload

@@ -3,19 +3,21 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.session import get_session
+from app.utils.database import get_session
+from app.utils.queue import send_email_verification_message
 from app.models.user import UserIn, UserOut, User
 from app.utils.utils import hash_password, verify_password
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 5
+EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS = 24
 
 router = APIRouter()
 
@@ -23,8 +25,13 @@ def create_access_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": str(user_id), "exp": expire}, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
 
+def create_email_verification_token(user_id: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(hours=EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
+    return jwt.encode({"sub": str(user_id), "purpose": "email-verify", "exp": expire}, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
+
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(newUser: UserIn,
+                   request: Request,
                    session: Annotated[AsyncSession, Depends(get_session)]):
     user = User(username=newUser.username, email=newUser.email, password_hash=hash_password(newUser.password))
     session.add(user)
@@ -34,7 +41,31 @@ async def register(newUser: UserIn,
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already taken")
     await session.refresh(user)
+    token = create_email_verification_token(user.id)
+    await send_email_verification_message(request.app.state.sqs_client, user.id, user.email, token)
     return user
+
+@router.get("/verify-email")
+async def verify_email(token: str,
+                       session: Annotated[AsyncSession, Depends(get_session)]):
+    invalid_token_exception = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification token")
+    try:
+        payload = jwt.decode(token, os.getenv("JWT_SECRET_KEY"), algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification token has expired")
+    except jwt.PyJWTError:
+        raise invalid_token_exception
+
+    if payload.get("purpose") != "email-verify" or payload.get("sub") is None:
+        raise invalid_token_exception
+
+    user = await session.get(User, int(payload["sub"]))
+    if user is None:
+        raise invalid_token_exception
+
+    user.email_verified = True
+    await session.commit()
+    return {"detail": "Email verified"}
 
 @router.post("/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
@@ -44,6 +75,8 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2Pa
     user = result.scalars().first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
+    if not user.email_verified:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before logging in")
     return {"access_token": create_access_token(user.id), "token_type": "bearer"}
 
 async def get_current_user(token: Annotated[str | None, Depends(OAuth2PasswordBearer(tokenUrl="/login", auto_error=False))],
@@ -99,6 +132,6 @@ async def create_default_user(session_factory):
         result = await session.execute(query)
         user = result.scalars().first()
         if not user:
-            user = User(username=os.getenv("DEFAULT_USER"), password_hash=hash_password(os.getenv("DEFAULT_USER_PASSWORD")))
+            user = User(username=os.getenv("DEFAULT_USER"), password_hash=hash_password(os.getenv("DEFAULT_USER_PASSWORD")), email_verified=True)
             session.add(user)
             await session.commit()
