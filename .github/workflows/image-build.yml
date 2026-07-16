@@ -27,6 +27,11 @@ jobs:
       DEFAULT_USER_PASSWORD: ${{ secrets.DEFAULT_USER_PASSWORD }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SQS_ENDPOINT_URL: http://localhost:9324
+      EMAIL_VERIFICATION_QUEUE_URL: http://localhost:9324/000000000000/email-verification
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_REGION: us-east-1
     steps:
     - name: Checkout git repository
       uses: actions/checkout@v6
@@ -37,7 +42,7 @@ jobs:
     - name: Install app dependancies
       run: pip install -r app/requirements.txt
     - name: Run docker compose
-      run: docker compose -f docker-compose.ci.yaml up -d mysql
+      run: docker compose -f docker-compose.ci.yaml up -d mysql elasticmq
     - name: Initialize journal API database
       run: python -m app.init_db
       env:

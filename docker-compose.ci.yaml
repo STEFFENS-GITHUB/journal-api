@@ -28,6 +28,33 @@ services:
       DEFAULT_USER: ${DEFAULT_USER}
       DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-    depends_on: 
+      SQS_ENDPOINT_URL: http://elasticmq:9324
+      EMAIL_VERIFICATION_QUEUE_URL: http://elasticmq:9324/000000000000/email-verification
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_REGION: us-east-1
+    depends_on:
       mysql:
         condition: service_healthy
+      elasticmq:
+        condition: service_started
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+    ports:
+    - 9324:9324
+    - 9325:9325
+    volumes:
+    - ./elasticmq.conf:/opt/elasticmq.conf
+
+  worker:
+    image: steffenp123/journal-worker:latest
+    environment:
+      SQS_ENDPOINT_URL: http://elasticmq:9324
+      EMAIL_VERIFICATION_QUEUE_URL: http://elasticmq:9324/000000000000/email-verification
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_REGION: us-east-1
+    depends_on:
+      elasticmq:
+        condition: service_started

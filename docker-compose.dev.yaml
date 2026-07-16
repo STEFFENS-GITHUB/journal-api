@@ -41,3 +41,11 @@ services:
         condition: service_healthy
       elasticmq:
         condition: service_started
+  
+  worker:
+    image: steffenp123/journal-worker:latest
+    env_file:
+    - .env
+    depends_on:
+      elasticmq:
+        condition: service_started
