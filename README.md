@@ -18,6 +18,5 @@
 | Variable | Description 
 `MYSQL_ROOT_PASSWORD` | Root password for the local MySQL container, read by the official `mysql` image's init script.
 `MYSQL_DATABASE` | Database name created by the local MySQL container on first boot.
-`DOCKER_ENV` | Set to `1` when running via docker compose. Currently unused by the app code.
 `DATABASE_URL` | Full SQLAlchemy DB connection string (e.g. `mysql+asyncmy://user:pass@mysql:3306/dbname`).
 `DATABASE_URL_LOCAL` | Full SQLAlchemy DB connection string with localhost(e.g. `mysql+asyncmy://user:pass@localhost:3306/dbname`).

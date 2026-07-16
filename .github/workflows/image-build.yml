@@ -26,7 +26,6 @@ jobs:
       DEFAULT_USER: ${{ secrets.DEFAULT_USER }}
       DEFAULT_USER_PASSWORD: ${{ secrets.DEFAULT_USER_PASSWORD }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DOCKER_ENV: ${{ secrets.DOCKER_ENV }}
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
     steps:
     - name: Checkout git repository
