@@ -1,4 +1,4 @@
-from app.routers.auth import create_access_token, create_email_verification_token
+from app.utils.utils import create_access_token, create_email_verification_token
 from app.tests.integration.conftest import TEST_USERNAME, TEST_EMAIL, TEST_PASSWORD
 
 async def test_register(client):
@@ -61,4 +61,37 @@ async def test_login_wrong_password(client, create_test_user):
 
 async def test_login_unknown_user(client):
     response = await client.post("/login", data={"username": "no-such-user", "password": "irrelevant"})
+    assert response.status_code == 401
+
+async def test_refresh_token_rotation(client, create_test_user):
+    user_id, _ = create_test_user
+    response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    old_refresh = response.json()["refresh_token"]
+
+    response = await client.post("/refresh-token", json={"refresh_token": old_refresh})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["refresh_token"] != old_refresh
+
+    response = await client.get(f"/api/user/{user_id}", headers={"Authorization": f"Bearer {body['access_token']}"})
+    assert response.status_code == 200
+
+    response = await client.post("/refresh-token", json={"refresh_token": old_refresh})
+    assert response.status_code == 401
+
+    response = await client.post("/refresh-token", json={"refresh_token": body["refresh_token"]})
+    assert response.status_code == 401
+
+async def test_refresh_token_invalid(client):
+    response = await client.post("/refresh-token", json={"refresh_token": "not-a-real-token"})
+    assert response.status_code == 401
+
+async def test_logout_revokes_refresh_token(client, create_test_user):
+    response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    refresh_token = response.json()["refresh_token"]
+
+    response = await client.post("/logout", json={"refresh_token": refresh_token})
+    assert response.status_code == 204
+
+    response = await client.post("/refresh-token", json={"refresh_token": refresh_token})
     assert response.status_code == 401

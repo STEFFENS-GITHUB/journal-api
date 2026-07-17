@@ -2,7 +2,7 @@ import os
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.routers.auth import create_email_verification_token
+from app.utils.utils import create_email_verification_token
 from app.utils.database import create_db_engine
 from app.utils.queue import create_sqs_client
 import pytest
