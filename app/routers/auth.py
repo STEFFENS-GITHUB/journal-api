@@ -1,6 +1,5 @@
 import os
-import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Annotated
 
 import jwt
@@ -16,18 +15,10 @@ from app.utils.queue import send_email_verification_message
 from app.models.refresh import RefreshRequest, RefreshToken
 from app.models.user import UserIn, UserOut, User
 from app.utils.utils import (ALGORITHM, create_access_token, create_email_verification_token,
-                             hash_password, hash_refresh_token, verify_password)
-
-REFRESH_TOKEN_EXPIRE_HOURS = 8
+                             create_refresh_token, hash_password, hash_refresh_token,
+                             refresh_token_expiry, verify_password)
 
 router = APIRouter()
-
-async def issue_refresh_token(user_id: int, session: AsyncSession) -> str:
-    raw = secrets.token_urlsafe(32)
-    expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=REFRESH_TOKEN_EXPIRE_HOURS)
-    session.add(RefreshToken(user_id=user_id, token_hash=hash_refresh_token(raw), expires_at=expire))
-    await session.commit()
-    return raw
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(newUser: UserIn,
@@ -77,8 +68,11 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2Pa
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
     if not user.email_verified:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before logging in")
+    refresh_token = create_refresh_token()
+    session.add(RefreshToken(user_id=user.id, token_hash=hash_refresh_token(refresh_token), expires_at=refresh_token_expiry()))
+    await session.commit()
     return {"access_token": create_access_token(user.id),
-            "refresh_token": await issue_refresh_token(user.id, session),
+            "refresh_token": refresh_token,
             "token_type": "bearer"}
 
 @router.post("/refresh-token")
@@ -99,8 +93,11 @@ async def refresh(body: RefreshRequest,
         raise invalid_token_exception
 
     stored.revoked = True
+    refresh_token = create_refresh_token()
+    session.add(RefreshToken(user_id=stored.user_id, token_hash=hash_refresh_token(refresh_token), expires_at=refresh_token_expiry()))
+    await session.commit()
     return {"access_token": create_access_token(stored.user_id),
-            "refresh_token": await issue_refresh_token(stored.user_id, session),
+            "refresh_token": refresh_token,
             "token_type": "bearer"}
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,5 +1,6 @@
 import hashlib
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -8,6 +9,7 @@ from pwdlib import PasswordHash
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 5
 EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS = 24
+REFRESH_TOKEN_EXPIRE_HOURS = 8
 
 password_hash = PasswordHash.recommended()
 
@@ -24,6 +26,12 @@ def create_access_token(user_id: int) -> str:
 def create_email_verification_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(hours=EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
     return jwt.encode({"sub": str(user_id), "purpose": "email-verify", "exp": expire}, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
+
+def create_refresh_token() -> str:
+    return secrets.token_urlsafe(32)
+
+def refresh_token_expiry() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=REFRESH_TOKEN_EXPIRE_HOURS)
 
 def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
