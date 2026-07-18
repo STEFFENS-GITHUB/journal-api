@@ -17,7 +17,6 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
 
-# look into why these are returning moer then just the token
 def create_access_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": str(user_id), "purpose": "access", "exp": expire}, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
