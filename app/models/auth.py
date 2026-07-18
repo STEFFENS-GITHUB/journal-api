@@ -2,10 +2,13 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
 
 class RefreshToken(Base):
     __tablename__ = "refresh_token"

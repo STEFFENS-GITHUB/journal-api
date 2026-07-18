@@ -29,6 +29,27 @@ async def test_verify_email_rejects_login_token(client):
     response = await client.get(f"/verify-email?token={login_token}")
     assert response.status_code == 400
     
+async def test_resend_verify_email_unverified_user(client):
+    response = await client.post("/register", json={"username": TEST_USERNAME, "email": TEST_EMAIL, "password": TEST_PASSWORD})
+    user = response.json()
+
+    response = await client.post("/resend-verify-email", json={"email": TEST_EMAIL})
+    assert response.status_code == 202
+
+    token = create_email_verification_token(user["id"])
+    await client.get(f"/verify-email?token={token}")
+    response = await client.post("/login", data={"username": TEST_USERNAME, "password": TEST_PASSWORD})
+    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    await client.delete(f"/api/user/{user['id']}", headers=headers)
+
+async def test_resend_verify_email_unknown_email(client):
+    response = await client.post("/resend-verify-email", json={"email": "nobody@example.com"})
+    assert response.status_code == 202
+
+async def test_resend_verify_email_already_verified(client, create_test_user):
+    response = await client.post("/resend-verify-email", json={"email": TEST_EMAIL})
+    assert response.status_code == 202
+
 async def test_register_duplicate_username(client, create_test_user):
     response = await client.post("/register", json={"username": TEST_USERNAME, "email": TEST_EMAIL, "password": TEST_PASSWORD})
     assert response.status_code == 409

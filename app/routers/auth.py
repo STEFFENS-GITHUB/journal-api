@@ -12,7 +12,7 @@ from starlette import status
 
 from app.utils.database import get_session
 from app.utils.queue import send_email_verification_message
-from app.models.refresh import RefreshRequest, RefreshToken
+from app.models.auth import RefreshRequest, RefreshToken, ResendVerificationRequest
 from app.models.user import UserIn, UserOut, User
 from app.utils.utils import (ALGORITHM, create_access_token, create_email_verification_token,
                              create_refresh_token, hash_password, hash_refresh_token,
@@ -57,6 +57,18 @@ async def verify_email(token: str,
     user.email_verified = True
     await session.commit()
     return {"detail": "Email verified"}
+
+@router.post("/resend-verify-email", status_code=status.HTTP_202_ACCEPTED)
+async def resend_verify_email(body: ResendVerificationRequest,
+                              request: Request,
+                              session: Annotated[AsyncSession, Depends(get_session)]):
+    query = select(User).where(User.email == body.email)
+    result = await session.execute(query)
+    user = result.scalars().first()
+    if user is not None and not user.email_verified:
+        token = create_email_verification_token(user.id)
+        await send_email_verification_message(request.app.state.sqs_client, user.id, user.email, token)
+    return {"detail": "If the email is registered and unverified, a new verification message has been sent"}
 
 @router.post("/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
