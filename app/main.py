@@ -69,8 +69,6 @@ async def health(request: Request):
     except Exception:
         checks["queue"] = "unavailable"
 
-    # Queue is best-effort throughout the app, so it reports but does
-    # not fail the health status.
     if checks["database"] == "ok":
         return {"status": "healthy", "checks": checks}
     raise HTTPException(status_code=503, detail={"status": "unhealthy", "checks": checks})
