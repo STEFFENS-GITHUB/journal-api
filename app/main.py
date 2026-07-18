@@ -54,9 +54,28 @@ app.include_router(auth.router)
 def index():
     return f"Welcome to the page"
 
-@app.get("/health", status_code=200)
-def health():
-    return {"status": "healthy"}
+@app.get("/health")
+async def health(request: Request):
+    checks = {}
+
+    try:
+        async with request.app.state.engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception:
+        checks["database"] = "unavailable"
+
+    try:
+        await asyncio.to_thread(request.app.state.sqs_client.list_queues, MaxResults=1)
+        checks["queue"] = "ok"
+    except Exception:
+        checks["queue"] = "unavailable"
+
+    # Queue is best-effort throughout the app, so it reports but does
+    # not fail the health status.
+    if checks["database"] == "ok":
+        return {"status": "healthy", "checks": checks}
+    raise HTTPException(status_code=503, detail={"status": "unhealthy", "checks": checks})
 
 if __name__ == "__main__":
     uvicorn.run(
