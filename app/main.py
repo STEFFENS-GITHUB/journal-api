@@ -57,14 +57,12 @@ def index():
 @app.get("/health")
 async def health(request: Request):
     checks = {}
-
     try:
         async with request.app.state.engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         checks["database"] = "ok"
     except Exception:
         checks["database"] = "unavailable"
-
     try:
         await asyncio.to_thread(request.app.state.sqs_client.list_queues, MaxResults=1)
         checks["queue"] = "ok"
