@@ -26,6 +26,12 @@ services:
     - 9325:9325
     volumes:
     - ./elasticmq.conf:/opt/elasticmq.conf
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9324"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   api:
     build: .
@@ -40,12 +46,13 @@ services:
       mysql:
         condition: service_healthy
       elasticmq:
-        condition: service_started
+        condition: service_healthy
   
   worker:
     image: steffenp123/journal-worker:latest
+    restart: on-failure
     env_file:
     - .env
     depends_on:
       elasticmq:
-        condition: service_started
+        condition: service_healthy

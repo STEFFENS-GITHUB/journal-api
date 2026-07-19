@@ -37,7 +37,7 @@ services:
       mysql:
         condition: service_healthy
       elasticmq:
-        condition: service_started
+        condition: service_healthy
 
   elasticmq:
     image: softwaremill/elasticmq-native:latest
@@ -46,9 +46,16 @@ services:
     - 9325:9325
     volumes:
     - ./elasticmq.conf:/opt/elasticmq.conf
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9324"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   worker:
     image: steffenp123/journal-worker:latest
+    restart: on-failure
     environment:
       SQS_ENDPOINT_URL: http://elasticmq:9324
       EMAIL_VERIFICATION_QUEUE_URL: http://elasticmq:9324/000000000000/email-verification
@@ -57,4 +64,4 @@ services:
       AWS_REGION: us-east-1
     depends_on:
       elasticmq:
-        condition: service_started
+        condition: service_healthy
