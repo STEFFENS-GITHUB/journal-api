@@ -11,3 +11,4 @@ mysql-connector-python
 cryptography
 pyjwt
 boto3
+redis

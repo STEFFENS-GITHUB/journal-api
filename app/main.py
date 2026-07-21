@@ -4,15 +4,17 @@ from app.routers import journal, user, auth
 from app.middleware.logging import LoggingMiddleware
 from app.utils.database import create_db_engine
 from app.utils.queue import create_sqs_client
-from fastapi import FastAPI, Request, HTTPException
+from app.utils.ratelimit import RateLimiter
+from fastapi import FastAPI, Request, HTTPException, Depends
 from contextlib import asynccontextmanager
+import redis.asyncio as redis
 import uvicorn
 import asyncio
 import os
 from sqlalchemy import text
 
 def validate_env():
-    for var in ("JWT_SECRET_KEY", "DEFAULT_USER", "DEFAULT_USER_PASSWORD"):
+    for var in ("JWT_SECRET_KEY", "DEFAULT_USER", "DEFAULT_USER_PASSWORD", "REDIS_URL"):
         if not os.getenv(var):
             raise RuntimeError(f"Missing {var} env var")
 
@@ -41,10 +43,14 @@ async def lifespan(app: FastAPI):
     validate_env()
     app.state.engine, app.state.session_factory = create_db_engine()
     app.state.sqs_client = create_sqs_client()
+    app.state.redis_client = redis.from_url(os.getenv("REDIS_URL"), encoding="utf-8", decode_responses=True)
+
     await init_db(app.state.engine, app.state.session_factory)
     yield
+    await app.state.redis_client.aclose()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan,
+              dependencies=[Depends(RateLimiter(times=100, seconds=60))])
 app.add_middleware(LoggingMiddleware)
 app.include_router(journal.router)
 app.include_router(user.router)

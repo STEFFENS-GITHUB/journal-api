@@ -5,6 +5,7 @@ from typing import Callable
 import uuid, logging, time, sys, asyncio
 
 from app.models.log import RequestLogData
+from app.utils.utils import get_client_ip
 
 def default_log_handler(log_data: RequestLogData):
     logger = logging.getLogger("request_logger")
@@ -45,9 +46,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
         finally:
             process_time = round((time.perf_counter_ns()-start_time)/1000000, 2)
-            forwarded = request.headers.get("x-forwarded-for")
-            client_ip = (forwarded.split(",")[0].strip() if forwarded
-                         else request.client.host if request.client else None)
+            client_ip = get_client_ip(request)
             if response is not None:
                 response.headers["Process-Time-ms"] = str(process_time)
                 response.headers["X-Request-ID"] = request_id

@@ -30,6 +30,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       SQS_ENDPOINT_URL: http://elasticmq:9324
       EMAIL_VERIFICATION_QUEUE_URL: http://elasticmq:9324/000000000000/email-verification
+      REDIS_URL: redis://redis:6379
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
       AWS_REGION: us-east-1
@@ -38,6 +39,19 @@ services:
         condition: service_healthy
       elasticmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:latest
+    ports:
+    - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   elasticmq:
     image: softwaremill/elasticmq-native:latest

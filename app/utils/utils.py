@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
+from fastapi import Request
 from pwdlib import PasswordHash
 
 ALGORITHM = "HS256"
@@ -35,3 +36,20 @@ def refresh_token_expiry() -> datetime:
 
 def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+def get_client_ip(request: Request) -> str | None:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+async def user_identifier(request: Request) -> str:
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        try:
+            payload = jwt.decode(auth[7:], os.getenv("JWT_SECRET_KEY"), algorithms=[ALGORITHM])
+            if payload.get("sub") and payload.get("purpose") == "access":
+                return f"user:{payload['sub']}"
+        except jwt.PyJWTError:
+            pass
+    return f"ip:{get_client_ip(request) or 'unknown'}"
